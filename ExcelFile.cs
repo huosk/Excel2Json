@@ -18,11 +18,19 @@ namespace ExcelToJson
         Boolean,
     }
 
+    public struct ColumnInfo
+    {
+        public int index;
+        public ColumnType type;
+        public bool isArray;
+        public char arraySplit;
+    }
+
     public class ExcelFile
     {
         private string file;
 
-        private ColumnType[] columnTypes;
+        private ColumnInfo[] columnInfos;
         private List<object[]> datas;
         private string[] columns;
 
@@ -49,20 +57,36 @@ namespace ExcelToJson
                 IRow row = sheet.GetRow(titleRowIndex);
                 if (row != null && row.Cells != null)
                 {
-                    columnTypes = new ColumnType[row.Cells.Count];
+                    columnInfos = new ColumnInfo[row.Cells.Count];
                     for (int i = 0; i < row.Cells.Count; i++)
                     {
-                        string typeStr = row.GetCell(i).StringCellValue;
-                        if (typeStr.Equals(TYPE_STRING)) columnTypes[i] = ColumnType.String;
-                        else if (typeStr.Equals(TYPE_INT)) columnTypes[i] = ColumnType.Int;
-                        else if (typeStr.Equals(TYPE_FLOAT)) columnTypes[i] = ColumnType.Float;
-                        else if (typeStr.Equals(TYPE_BOOLEAN)) columnTypes[i] = ColumnType.Boolean;
-                        else columnTypes[i] = ColumnType.Unknown;
+                        var ce = row.GetCell(i);
+                        if (ce == null)
+                            continue;
+
+                        columnInfos[i].index = ce.ColumnIndex;
+
+
+                        string typeStr = ce.StringCellValue.Trim();
+
+                        var match = System.Text.RegularExpressions.Regex.Match(typeStr, @"^(\w+)\[(.)\]$");
+                        if (match.Success)
+                        {
+                            typeStr = match.Groups[1].Value;
+                            columnInfos[i].isArray = true;
+                            columnInfos[i].arraySplit = match.Groups[2].Value[0];
+                        }
+
+                        if (typeStr.Equals(TYPE_STRING)) columnInfos[i].type = ColumnType.String;
+                        else if (typeStr.Equals(TYPE_INT)) columnInfos[i].type = ColumnType.Int;
+                        else if (typeStr.Equals(TYPE_FLOAT)) columnInfos[i].type = ColumnType.Float;
+                        else if (typeStr.Equals(TYPE_BOOLEAN)) columnInfos[i].type = ColumnType.Boolean;
+                        else columnInfos[i].type = ColumnType.Unknown;
                     }
                 }
 
                 // 列数以类型行为准
-                int columnCount = columnTypes.Length;
+                int columnCount = columnInfos.Length;
 
                 // 读取列的属性名称
                 int propertyNameRowIndex = titleRowIndex + 1;
@@ -70,7 +94,15 @@ namespace ExcelToJson
                 row = sheet.GetRow(propertyNameRowIndex);
                 for (int i = 0; i < columnCount; i++)
                 {
-                    columns[i] = row.GetCell(i).StringCellValue;
+                    var colInfo = columnInfos[i];
+                    var ce = row.GetCell(colInfo.index);
+                    if (ce == null)
+                    {
+                        Console.Error.WriteLine("{0} 文件的第{1}列，未设置属性名称", file, colInfo.index);
+                        continue;
+                    }
+
+                    columns[i] = ce.StringCellValue;
                 }
 
                 // 开始读取数据
@@ -84,22 +116,53 @@ namespace ExcelToJson
 
                     for (int i = 0; i < columnCount; i++)
                     {
-                        if (i < row.Cells.Count)
+                        var colInfo = columnInfos[i];
+                        ICell ce = row.GetCell(colInfo.index);
+
+                        if (ce != null)
                         {
-                            var ce = row.GetCell(i);
-                            switch (columnTypes[i])
+                            bool isArr = columnInfos[i].isArray;
+                            char split = columnInfos[i].arraySplit;
+                            switch (columnInfos[i].type)
                             {
                                 case ColumnType.Int:
-                                    rowData[i] = (int)ce.NumericCellValue;
+                                    if (isArr)
+                                        rowData[i] = ce.StringCellValue.Split(split).Select((v) =>
+                                        {
+                                            int num = 0;
+                                            int.TryParse(v, out num);
+                                            return num;
+                                        }).ToArray();
+                                    else
+                                        rowData[i] = (int)ce.NumericCellValue;
                                     break;
                                 case ColumnType.String:
-                                    rowData[i] = ce.StringCellValue;
+                                    if (isArr)
+                                        rowData[i] = ce.StringCellValue.Split(split);
+                                    else
+                                        rowData[i] = ce.StringCellValue;
                                     break;
                                 case ColumnType.Float:
-                                    rowData[i] = (float)ce.NumericCellValue;
+                                    if (isArr)
+                                        rowData[i] = ce.StringCellValue.Split(split).Select((v) =>
+                                        {
+                                            float num = 0.0f;
+                                            float.TryParse(v, out num);
+                                            return num;
+                                        }).ToArray();
+                                    else
+                                        rowData[i] = (float)ce.NumericCellValue;
                                     break;
                                 case ColumnType.Boolean:
-                                    rowData[i] = ce.BooleanCellValue;
+                                    if (isArr)
+                                        rowData[i] = ce.StringCellValue.Split(split).Select((v) =>
+                                        {
+                                            bool b = false;
+                                            bool.TryParse(v, out b);
+                                            return b;
+                                        }).ToArray();
+                                    else
+                                        rowData[i] = ce.BooleanCellValue;
                                     break;
                                 default:
                                     rowData[i] = ce.StringCellValue;
@@ -108,7 +171,7 @@ namespace ExcelToJson
                         }
                         else
                         {
-                            rowData[i] = GetDefaultValue(columnTypes[i]);
+                            rowData[i] = GetDefaultValue(columnInfos[i].type);
                         }
                     }
 

@@ -1,5 +1,6 @@
 ﻿using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+using NPOI.SS.UserModel;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -26,6 +27,10 @@ namespace ExcelToJson
             for (int i = 0; i < files.Length; i++)
             {
                 string file = files[i];
+                bool isHiden = File.GetAttributes(file).HasFlag(FileAttributes.Hidden);
+                if (isHiden)
+                    continue;
+
                 try
                 {
                     ExcelFile excelFile = new ExcelFile(file);
@@ -73,8 +78,6 @@ namespace ExcelToJson
 
             Console.WriteLine(">>>>>>>>>>>>>>>>>>>>> 生成完成 <<<<<<<<<<<<<<<<<<<<<<<<");
             Console.WriteLine("                  成功：{0}；失败{1}", successCount, failedCount);
-            Console.WriteLine("按任意键退出");
-            Console.ReadKey();
         }
 
         static AppConfig LoadConfigure()
