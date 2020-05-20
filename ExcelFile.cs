@@ -123,50 +123,58 @@ namespace ExcelToJson
                         {
                             bool isArr = columnInfos[i].isArray;
                             char split = columnInfos[i].arraySplit;
-                            switch (columnInfos[i].type)
+
+                            if (isArr && string.IsNullOrEmpty(ce.StringCellValue))
                             {
-                                case ColumnType.Int:
-                                    if (isArr)
-                                        rowData[i] = ce.StringCellValue.Split(split).Select((v) =>
-                                        {
-                                            int num = 0;
-                                            int.TryParse(v, out num);
-                                            return num;
-                                        }).ToArray();
-                                    else
-                                        rowData[i] = (int)ce.NumericCellValue;
-                                    break;
-                                case ColumnType.String:
-                                    if (isArr)
-                                        rowData[i] = ce.StringCellValue.Split(split);
-                                    else
+                                rowData[i] = null;
+                            }
+                            else
+                            {
+                                switch (columnInfos[i].type)
+                                {
+                                    case ColumnType.Int:
+                                        if (isArr)
+                                            rowData[i] = ce.StringCellValue.Split(split).Select((v) =>
+                                            {
+                                                int num = 0;
+                                                int.TryParse(v, out num);
+                                                return num;
+                                            }).ToArray();
+                                        else
+                                            rowData[i] = (int)ce.NumericCellValue;
+                                        break;
+                                    case ColumnType.String:
+                                        if (isArr)
+                                            rowData[i] = ce.StringCellValue.Split(split);
+                                        else
+                                            rowData[i] = ce.StringCellValue;
+                                        break;
+                                    case ColumnType.Float:
+                                        if (isArr)
+                                            rowData[i] = ce.StringCellValue.Split(split).Select((v) =>
+                                            {
+                                                float num = 0.0f;
+                                                float.TryParse(v, out num);
+                                                return num;
+                                            }).ToArray();
+                                        else
+                                            rowData[i] = (float)ce.NumericCellValue;
+                                        break;
+                                    case ColumnType.Boolean:
+                                        if (isArr)
+                                            rowData[i] = ce.StringCellValue.Split(split).Select((v) =>
+                                            {
+                                                bool b = false;
+                                                bool.TryParse(v, out b);
+                                                return b;
+                                            }).ToArray();
+                                        else
+                                            rowData[i] = ce.BooleanCellValue;
+                                        break;
+                                    default:
                                         rowData[i] = ce.StringCellValue;
-                                    break;
-                                case ColumnType.Float:
-                                    if (isArr)
-                                        rowData[i] = ce.StringCellValue.Split(split).Select((v) =>
-                                        {
-                                            float num = 0.0f;
-                                            float.TryParse(v, out num);
-                                            return num;
-                                        }).ToArray();
-                                    else
-                                        rowData[i] = (float)ce.NumericCellValue;
-                                    break;
-                                case ColumnType.Boolean:
-                                    if (isArr)
-                                        rowData[i] = ce.StringCellValue.Split(split).Select((v) =>
-                                        {
-                                            bool b = false;
-                                            bool.TryParse(v, out b);
-                                            return b;
-                                        }).ToArray();
-                                    else
-                                        rowData[i] = ce.BooleanCellValue;
-                                    break;
-                                default:
-                                    rowData[i] = ce.StringCellValue;
-                                    break;
+                                        break;
+                                }
                             }
                         }
                         else
