@@ -46,7 +46,7 @@ namespace ExcelToJson
             this.file = file;
         }
 
-        public void ParseFile() 
+        public void ParseFile()
         {
             using (FileStream fs = new FileStream(file, FileMode.Open, FileAccess.Read))
             {
@@ -70,7 +70,6 @@ namespace ExcelToJson
                             continue;
 
                         columnInfos[i].index = ce.ColumnIndex;
-
 
                         string typeStr = ce.StringCellValue.Trim();
 
@@ -110,18 +109,19 @@ namespace ExcelToJson
                 }
 
                 // 开始读取数据
-                int dataIndex = titleRowIndex + 2;
-                row = sheet.GetRow(dataIndex);
                 datas = new List<object[]>();
 
-                while (row != null && row.Cells != null && row.Cells.Count > 0)
+                for (int rowNum = titleRowIndex + 2; rowNum <= sheet.LastRowNum; rowNum++)
                 {
+                    var tempRow = sheet.GetRow(rowNum);
+                    if (tempRow == null || tempRow.Cells == null || tempRow.Cells.Count == 0)
+                        continue;
+
                     if (SkipEmptyRow)
                     {
-                        bool isEmptyRow = IsEmptyRow(row, columnCount);
+                        bool isEmptyRow = IsEmptyRow(tempRow, columnCount);
                         if (isEmptyRow)
                         {
-                            row = sheet.GetRow(++dataIndex);
                             continue;
                         }
                     }
@@ -134,7 +134,7 @@ namespace ExcelToJson
                         bool isArr = columnInfos[i].isArray;
                         char split = columnInfos[i].arraySplit;
 
-                        ICell ce = row.GetCell(colInfo.index);
+                        ICell ce = tempRow.GetCell(colInfo.index);
 
                         if (ce == null || (isArr && string.IsNullOrEmpty(ce.StringCellValue)))
                         {
@@ -150,8 +150,6 @@ namespace ExcelToJson
                     }
 
                     datas.Add(rowData);
-
-                    row = sheet.GetRow(++dataIndex);
                 }
             }
         }
@@ -165,7 +163,12 @@ namespace ExcelToJson
             for (int i = 0; i < columnCount; i++)
             {
                 var cell = row.GetCell(i);
-                if (cell != null && !string.IsNullOrEmpty(cell.StringCellValue))
+                if (cell == null)
+                    continue;
+
+                if (cell.CellType == CellType.Blank)
+                    continue;
+                else if (cell.CellType == CellType.String && !string.IsNullOrEmpty(cell.StringCellValue))
                     return false;
             }
 
