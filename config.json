@@ -1,4 +1,5 @@
 ﻿{
-    "sources": "..\\",
-    "destination": "..\\generate\\"
+  "sources": "..\\",
+  "destination": "..\\generate\\",
+  "skipEmptyRow": true
 }

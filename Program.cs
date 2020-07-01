@@ -34,6 +34,8 @@ namespace ExcelToJson
                 try
                 {
                     ExcelFile excelFile = new ExcelFile(file);
+                    excelFile.SkipEmptyRow = config.skipEmptyRow;
+                    excelFile.ParseFile();
 
                     var rows = excelFile.GetRows();
                     JObject jObject = new JObject();
@@ -99,5 +101,6 @@ namespace ExcelToJson
     {
         public string sources = "..\\";
         public string destination = "..\\generate";
+        public bool skipEmptyRow;
     }
 }

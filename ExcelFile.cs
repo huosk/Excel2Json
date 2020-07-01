@@ -30,8 +30,9 @@ namespace ExcelToJson
 
     public class ExcelFile
     {
-        private string file;
+        public bool SkipEmptyRow { get; set; }
 
+        private string file;
         private ColumnInfo[] columnInfos;
         private List<object[]> datas;
 
@@ -43,7 +44,10 @@ namespace ExcelToJson
         public ExcelFile(string file)
         {
             this.file = file;
+        }
 
+        public void ParseFile() 
+        {
             using (FileStream fs = new FileStream(file, FileMode.Open, FileAccess.Read))
             {
                 IWorkbook workbook = new XSSFWorkbook(fs);
@@ -112,6 +116,16 @@ namespace ExcelToJson
 
                 while (row != null && row.Cells != null && row.Cells.Count > 0)
                 {
+                    if (SkipEmptyRow)
+                    {
+                        bool isEmptyRow = IsEmptyRow(row, columnCount);
+                        if (isEmptyRow)
+                        {
+                            row = sheet.GetRow(++dataIndex);
+                            continue;
+                        }
+                    }
+
                     object[] rowData = new object[columnCount];
 
                     for (int i = 0; i < columnCount; i++)
@@ -140,6 +154,22 @@ namespace ExcelToJson
                     row = sheet.GetRow(++dataIndex);
                 }
             }
+        }
+
+        // 检测是否为空行
+        private bool IsEmptyRow(IRow row, int columnCount)
+        {
+            if (row == null || row.Cells == null || row.Cells.Count == 0)
+                return true;
+
+            for (int i = 0; i < columnCount; i++)
+            {
+                var cell = row.GetCell(i);
+                if (cell != null && !string.IsNullOrEmpty(cell.StringCellValue))
+                    return false;
+            }
+
+            return true;
         }
 
         private object GetCellValue(ColumnType type, ICell ce)
