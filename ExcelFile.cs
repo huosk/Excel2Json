@@ -136,16 +136,30 @@ namespace ExcelToJson
 
                         ICell ce = tempRow.GetCell(colInfo.index);
 
-                        if (ce == null || (isArr && string.IsNullOrEmpty(ce.StringCellValue)))
+                        try
                         {
-                            rowData[i] = GetDefaultValue(columnInfos[i]);
-                        }
-                        else
-                        {
-                            if (isArr)
-                                rowData[i] = ce.StringCellValue.Split(split).Select((v) => ConvertCell(columnInfos[i].type, v)).ToArray();
+                            if (ce == null || (isArr && ce.CellType == CellType.Blank))
+                            {
+                                rowData[i] = GetDefaultValue(columnInfos[i]);
+                            }
                             else
-                                rowData[i] = GetCellValue(columnInfos[i].type, ce);
+                            {
+                                if (isArr)
+                                {
+                                    ce.SetCellType(CellType.String);
+                                    rowData[i] = ce.StringCellValue.Split(split).Select((v) => ConvertCell(columnInfos[i].type, v)).ToArray();
+                                }
+                                else
+                                {
+                                    ce.SetCellType(CellType.String);
+                                    rowData[i] = ConvertCell(columnInfos[i].type, ce.StringCellValue);
+                                }
+                            }
+                        }
+                        catch (Exception e)
+                        {
+                            Console.WriteLine("({0}):{1}", ce.Address.ToString(), e);
+                            throw;
                         }
                     }
 
@@ -177,6 +191,9 @@ namespace ExcelToJson
 
         private object GetCellValue(ColumnType type, ICell ce)
         {
+            if (ce == null)
+                throw new ArgumentNullException("ce");
+
             if (type == ColumnType.Int) return (int)ce.NumericCellValue;
             else if (type == ColumnType.Float) return (float)ce.NumericCellValue;
             else if (type == ColumnType.String) return ce.StringCellValue;
