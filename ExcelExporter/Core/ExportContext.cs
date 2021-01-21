@@ -11,13 +11,8 @@ namespace ExcelExporter.Core
     public class ExportContext
     {
         public string workDirectory;
-        public string src;
-        public string output;
-
-        public bool configeReady;
 
         private LuaEnv luaEnv;
-        private List<string> includes;
         private List<IExporter> exporters;
 
         public IExporter Json { get; }
@@ -27,20 +22,9 @@ namespace ExcelExporter.Core
         {
             this.luaEnv = luaEnv;
             this.workDirectory = workDir;
-            this.includes = new List<string>();
             this.exporters = new List<IExporter>();
             this.Json = new JsonExporter();
             this.Lua = new LuaExporter();
-        }
-
-        public void config(LuaTable tb)
-        {
-            string dest = tb.GetInPath<string>("output");
-
-            this.src = src ?? "";
-            this.output = dest ?? "";
-
-            configeReady = true;
         }
 
         public LuaTable parse_excel_sheet(string file, int sheetNum, int titleNum, int dataNum)
@@ -107,6 +91,61 @@ namespace ExcelExporter.Core
             {
                 return System.IO.Path.GetFullPath(file);
             }
+        }
+    }
+
+    public class LuaAPI
+    {
+        public static void init_api(LuaEnv env)
+        {
+            env.Global.Set<string, Action<LuaTable, object>>("as_int", as_int);
+            env.Global.Set<string, Action<LuaTable, object>>("as_long", as_long);
+            env.Global.Set<string, Action<LuaTable, object>>("as_double", as_double);
+            env.Global.Set<string, Action<LuaTable, object>>("as_float", as_float);
+            env.Global.Set<string, Action<LuaTable, object>>("as_bool", as_bool);
+            env.Global.Set<string, Action<LuaTable, object>>("as_string", as_string);
+        }
+
+        private static Dictionary<object, Type> create_type_map(LuaTable tb)
+        {
+            Dictionary<object, Type> __type_map__ = null;
+            tb.Get<string, Dictionary<object, Type>>("__type_map__", out __type_map__);
+            if (__type_map__ == null)
+            {
+                __type_map__ = new Dictionary<object, Type>();
+                tb.Set<string, Dictionary<object, Type>>("__type_map__", __type_map__);
+            }
+            return __type_map__;
+        }
+
+        public static void as_int(LuaTable tb, object key)
+        {
+            create_type_map(tb)[key] = typeof(int);
+        }
+
+        public static void as_long(LuaTable tb, object key)
+        {
+            create_type_map(tb)[key] = typeof(long);
+        }
+
+        public static void as_double(LuaTable tb, object key)
+        {
+            create_type_map(tb)[key] = typeof(double);
+        }
+
+        public static void as_float(LuaTable tb, object key)
+        {
+            create_type_map(tb)[key] = typeof(float);
+        }
+
+        public static void as_bool(LuaTable tb, object key)
+        {
+            create_type_map(tb)[key] = typeof(bool);
+        }
+
+        public static void as_string(LuaTable tb, object key)
+        {
+            create_type_map(tb)[key] = typeof(string);
         }
     }
 }

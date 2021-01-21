@@ -29,6 +29,9 @@ namespace ExcelExporter.Exportor
             var keys = table.GetKeys();
             foreach (var key in keys)
             {
+                if (is_internal_key(key as string))
+                    continue;
+
                 if (!typeof(long).IsAssignableFrom(key.GetType()))
                 {
                     return false;
@@ -62,6 +65,8 @@ namespace ExcelExporter.Exportor
         private void parse_lua_array(LuaTable table, JArray array)
         {
             var keys = table.GetKeys<long>().ToArray();
+            Dictionary<object, Type> __type_map__ = null;
+            table.Get<string, Dictionary<object, Type>>("__type_map__", out __type_map__);
             foreach (var key in keys)
             {
                 var val = table[key];
@@ -78,9 +83,45 @@ namespace ExcelExporter.Exportor
                 }
                 else
                 {
-                    array.Add(JToken.FromObject(val));
+                    if (__type_map__ != null && __type_map__.TryGetValue(key, out Type tp))
+                    {
+                        array.Add(JToken.FromObject(convert(val, tp) ?? val));
+                    }
+                    else
+                    {
+                        array.Add(JToken.FromObject(val));
+                    }
                 }
             }
+        }
+
+        private object convert(object val, Type tp)
+        {
+            if (tp == typeof(int) || tp == typeof(long))
+            {
+                return JToken.FromObject(Convert.ToInt64(val));
+            }
+            else if (tp == typeof(string))
+            {
+                return JToken.FromObject(Convert.ToString(val));
+            }
+            else if (tp == typeof(float) || tp == typeof(double))
+            {
+                return JToken.FromObject(Convert.ToDouble(val));
+            }
+            else if (tp == typeof(bool))
+            {
+                return JToken.FromObject(Convert.ToBoolean(val));
+            }
+            else
+            {
+                return null;
+            }
+        }
+
+        private bool is_internal_key(string key)
+        {
+            return !string.IsNullOrEmpty(key) && key.StartsWith("__");
         }
 
         private void parse_lua_object(LuaTable table, JObject obj)
@@ -91,9 +132,14 @@ namespace ExcelExporter.Exportor
                 keys.Add(k);
             }
 
+            Dictionary<object, Type> __type_map__ = null;
+            table.Get<string, Dictionary<object, Type>>("__type_map__", out __type_map__);
             foreach (var item in keys)
             {
                 string jsonKey = item.ToString();
+                if (is_internal_key(jsonKey))
+                    continue;
+
                 var val = table[item];
                 if (val == null)
                 {
@@ -109,7 +155,14 @@ namespace ExcelExporter.Exportor
                     }
                     else
                     {
-                        obj.Add(jsonKey, JToken.FromObject(val));
+                        if (__type_map__ != null && __type_map__.TryGetValue(jsonKey, out Type tp))
+                        {
+                            obj.Add(jsonKey, JToken.FromObject(convert(val, tp) ?? val));
+                        }
+                        else
+                        {
+                            obj.Add(jsonKey, JToken.FromObject(val));
+                        }
                     }
                 }
             }
